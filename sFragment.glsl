@@ -1,7 +1,7 @@
 precision mediump float;
 
-#define ITER 1600
-#define AA 3.
+#define ITER 2600
+#define AA 2.
 
 uniform vec2 Resolution;
 uniform float Zoom;
@@ -47,7 +47,7 @@ float mandelbrot_IQ( vec2 dc ) {
     // https://twitter.com/iquilezles/status/1232998904766984192
     vec2 z  = vec2(0.0);
     vec2 dz = vec2(0.0);
-    float norm;
+    float normSquared;
 
     for( int i=0; i<ITER; i++ ) {
         // IQ's original update function
@@ -60,10 +60,10 @@ float mandelbrot_IQ( vec2 dc ) {
         // Could be precomputed since it's constant for all pixels.
         z  = cMul(z,z) + Reference;
 
-        norm = dot(z+dz,z+dz);
-        if (norm < 0.001)
+        normSquared = dot(z+dz,z+dz);
+        if (normSquared < 0.000001)
             return 0.;
-        if (norm > 4.)
+        if (normSquared > 4.)
             return 1.;
     }
     return 0.;
@@ -72,16 +72,18 @@ float mandelbrot_IQ( vec2 dc ) {
 void main() {
     float scale = pow(10.0, Zoom);
     vec2 uv = scale * (2.0*gl_FragCoord.xy - Resolution) / Resolution.y;
+    uv -= CenterOffset;
+
     float pixSize = 2.0 * scale / Resolution.y;
-    uv -= CenterOffset * 2.0 / Resolution.y;
+    float radiusSquared = pow(2.*pixSize, 2.);
 
     vec3 col = vec3(0);
     for (float i=0.; i<AA; i++) {
         for (float j=0.; j<AA; j++) {
 			vec2 dc = uv + pixSize * vec2(i+1., j+1.) / (AA + 1.);
 
-            if (dot(dc,dc) < pow(2.*pixSize, 2.))
-                col += vec3(0.2,0.8,0.5);
+            if (dot(dc,dc) < radiusSquared)
+                col += vec3(0.2,0.2,0.8);
             else
                 col += mandelbrot_IQ(dc);
                 // col += mandelSetNaive(dc);

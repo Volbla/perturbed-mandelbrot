@@ -43,7 +43,7 @@ function main() {
 
 
 	var zoom = -2.8;
-	const reference
+	let reference
 	// Random point i've picked. The second variant is closer to exactly a 270 long cycle.
 	//  = [-0.74776, -0.069597];
 	 = [-0.7468532881, -0.06969976977];
@@ -77,14 +77,53 @@ function main() {
 	var centerOffset = [0,0];
 	var delx, dely;
 	canvas.addEventListener("mousedown", evt => {
-		delx = evt.offsetX;
-		dely = evt.offsetY;
+		evt.preventDefault();
+		if (evt.button == 0)
+			delx = evt.offsetX, dely = evt.offsetY;
+
+		if (evt.button == 2) {
+			const w = canvas.width, h = canvas.height;
+			const x = (2 * evt.offsetX - w) / h * 10**(zoom) - centerOffset[0];
+			const y = (2 * (h - evt.offsetY) - h) / h * 10**(zoom) - centerOffset[1];
+
+			const maybeReference = newReference(reference[0]+x, reference[1]+y);
+			if (maybeReference === null) {
+				console.log("diverges");
+				return
+			}
+
+			centerOffset = cAdd(centerOffset, cSub(maybeReference, reference));
+			reference = maybeReference;
+			console.log(reference);
+			gl.uniform2fv(glLocations.reference, reference);
+			gl.uniform2fv(glLocations.centerOffset, centerOffset);
+			draw();
+		}
 	});
+
+	canvas.addEventListener("contextmenu", evt => evt.preventDefault());
+
 	canvas.addEventListener("mouseup", evt => {
-		delx = (evt.offsetX - delx) * 10**(zoom);
-		dely = (evt.offsetY - dely) * 10**(zoom);
+		if (evt.button != 0) return
+
+		delx = (evt.offsetX - delx) * 2 / canvas.height * 10**(zoom);
+		dely = (evt.offsetY - dely) * 2 / canvas.height * 10**(zoom);
 		centerOffset[0] += delx;
 		centerOffset[1] -= dely;
+		gl.uniform2fv(glLocations.centerOffset, centerOffset);
+		draw();
+	});
+
+	canvas.addEventListener("dblclick", evt => {
+		if (evt.button != 0) return
+		console.log("double click");
+
+		const w = canvas.width, h = canvas.height;
+		const x = (2 * evt.offsetX - w) / h * 10**(zoom);
+		const y = (2 * (h - evt.offsetY) - h) / h * 10**(zoom);
+
+		centerOffset[0] -= x;
+		centerOffset[1] -= y;
 		gl.uniform2fv(glLocations.centerOffset, centerOffset);
 		draw();
 	});
@@ -105,6 +144,27 @@ function setCanvasSize(updateGLFunction){
 	canvas.height = cHeight;
 
 	updateGLFunction(cWidth, cHeight);
+}
+
+
+function newReference(clickx, clicky) {
+	const c = [clickx, clicky];
+	const passed = new Set(c.toString());
+
+	let z = mandelIter([0,0], c);
+	while (!passed.has(z.toString())) {
+		passed.add(z.toString());
+		z = mandelIter(z,c);
+		if (normSquared(z) > 4) return null
+	}
+	const z0 = z.toString()
+	let zBest = z;
+	do {
+		z = mandelIter(z,c)
+		if (normSquared(cSub(z,c)) < normSquared(cSub(zBest,c)))
+			zBest = z;
+	} while(z.toString() != z0)
+	return zBest;
 }
 
 
@@ -134,8 +194,20 @@ function cAdd(a, b) {
 	return [a[0]+b[0], a[1]+b[1]];
 }
 
+function cSub(a, b) {
+	return [a[0]-b[0], a[1]-b[1]];
+}
+
 function cMul(a, b){
     return [a[0]*b[0] - a[1]*b[1], a[0]*b[1] + a[1]*b[0]];
+}
+
+function mandelIter(z, c) {
+	return cAdd(cMul(z,z), c);
+}
+
+function normSquared(a) {
+	return a[0]**2 + a[1]**2;
 }
 
 
