@@ -1,12 +1,13 @@
-const vsSource = await fetch("sVertex.glsl").then(response => response.text());
-const fsSource = await fetch("sFragment.glsl").then(response => response.text());
+const vertSource = await fetch("sVertex.glsl").then(response => response.text());
+const fragSourceIQ = await fetch("sFragment IQ.glsl").then(response => response.text());
+const fragSourcePert = await fetch("sFragment perturb.glsl").then(response => response.text());
 
 
 export function makeProgram(gl) {
 	const program = gl.createProgram();
 
-	const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
-	const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+	const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vertSource);
+	const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fragSourceIQ);
 
 	gl.attachShader(program, vertexShader);
 	gl.attachShader(program, fragmentShader);
